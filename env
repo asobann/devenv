@@ -1,0 +1,44 @@
+source env.local
+echo ASOBANN_ROOT is set to $ASOBANN_ROOT
+
+# shortcut aliases
+alias t='pipenv run pytest'
+alias tk='pipenv run pytest -k'
+alias tlf='pipenv run pytest --lf'
+
+# run local development server
+#alias rundev='FLASK_ENV=develop pipenv run python -m asobann.wsgi'
+alias rundev='docker-compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml up --build'
+
+# load initial data for local development server
+alias deploydev='cd src/asobann ; pipenv run python generate_table_json.py ; cd ../.. ; FLASK_ENV=develop pipenv run python -m asobann.deploy'
+
+# build release image
+alias release='git co master ; git merge develop ; git tag r`date +'%Y%m%d_%H%M'` ; npx webpack ; git push --tags origin master ; build_aws'
+alias build_aws='pushd $ASOBANN_ROOT/asobann_deploy ; pipenv run python tools/build_image.py ; popd'
+alias cfn_deploy_dev=' \
+  set -x ; \
+  pushd $ASOBANN_ROOT/asobann_deploy/aws
+  aws cloudformation package --template-file asobann_aws.yaml --s3-bucket asobann-deploy-cfn --s3-prefix dev --output-template-file /tmp/asobann_aws.yaml ;
+  aws cloudformation deploy --template-file /tmp/asobann_aws.yaml --stack-name asobann-dev --parameter-overrides PublicHostname=${AWS_DEV_PUBLIC_HOSTNAME} MaintenanceIpRange=${AWS_MAINTENANCE_IP_RANGE} InstanceType=t3.small MongoDbPassword=${AWS_MONGODB_PASSWORD} AppImage=${AWS_APP_IMAGE}:latest AppTaskCount=1 CertificateArn=${AWS_CERTIFICATE_ARN} GoogleAnalyticsId=NotAvailable UploadedImageStore=s3 AwsKey=${AWS_KEY} AwsSecret=${AWS_SECRET} AwsCognitoUserPoolId=${AWS_DEV_COGNITO_USER_POOL_ID} AwsCognitoClientId=${AWS_DEV_COGNITO_CLIENT_ID} FlaskEnv=development DebugOpts=PERFORMANCE_RECORDING AppTaskFamily=app_dev --capabilities CAPABILITY_IAM --tags ProjectName=asobann AsobannEnv=dev; \
+  rm /tmp/asobann_aws.yaml; \
+  set +x'
+alias cfn_deploy_prod=' \
+  set -x ; \
+  pushd $ASOBANN_ROOT/asobann_deploy/aws
+  aws cloudformation package --template-file asobann_aws.yaml --s3-bucket asobann-deploy-cfn --s3-prefix prod --output-template-file /tmp/asobann_aws.yaml ;
+  aws cloudformation deploy --template-file /tmp/asobann_aws.yaml --stack-name asobann-prod --parameter-overrides PublicHostname=${AWS_PROD_PUBLIC_HOSTNAME} MaintenanceIpRange=${AWS_MAINTENANCE_IP_RANGE} MongoDbPassword=${AWS_MONGODB_PASSWORD} AppImage=${AWS_APP_IMAGE}:production AppTaskCount=3 CertificateArn=${AWS_CERTIFICATE_ARN} GoogleAnalyticsId=${GOOGLE_ANALYTICS_ID} UploadedImageStore=s3 AwsKey=${AWS_KEY} AwsSecret=${AWS_SECRET} AwsCognitoUserPoolId=xxx AwsCognitoClientId=xxx AppTaskFamily=app_prod --capabilities CAPABILITY_IAM --tags ProjectName=asobann AsobannEnv=prod ; \
+  rm /tmp/asobann_aws.yaml; \
+  set +x'
+restart_tasks_dev() {
+  set -x
+  cluster=`aws ecs list-clusters | grep asobann-dev-Cluster | sed 's/[ ",]//g'`
+  service=`aws ecs list-services --cluster $cluster | grep AppService | sed 's/[ ",]//g'`
+  aws ecs list-tasks --cluster $cluster --service-name $service | grep arn: | sed 's/[",]//g' | xargs -n 1 -I {} aws ecs stop-task --cluster $cluster --task {} > /dev/null
+}
+restart_tasks_prod() {
+  set -x
+  cluster=`aws ecs list-clusters | grep asobann-prod-Cluster | sed 's/[ ",]//g'`
+  service=`aws ecs list-services --cluster $cluster | grep AppService | sed 's/[ ",]//g'`
+  aws ecs list-tasks --cluster $cluster --service-name $service | grep arn: | sed 's/[",]//g' | xargs -n 1 -I {} aws ecs stop-task --cluster $cluster --task {} > /dev/null
+}

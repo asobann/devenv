@@ -1,0 +1,7 @@
+*.pem
+env.local
+.idea/
+tmp/
+asobann_app/
+asobann_contents/
+asobann_deploy/
