@@ -1,18 +1,6 @@
 source env.local
 echo ASOBANN_ROOT is set to $ASOBANN_ROOT
 
-# shortcut aliases
-alias t='pipenv run pytest'
-alias tk='pipenv run pytest -k'
-alias tlf='pipenv run pytest --lf'
-
-# run local development server
-#alias rundev='FLASK_ENV=develop pipenv run python -m asobann.wsgi'
-alias rundev='docker-compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml up --build'
-
-# load initial data for local development server
-alias deploydev='cd src/asobann ; pipenv run python generate_table_json.py ; cd ../.. ; FLASK_ENV=develop pipenv run python -m asobann.deploy'
-
 # build release image
 alias release='git co master ; git merge develop ; git tag r`date +'%Y%m%d_%H%M'` ; npx webpack ; git push --tags origin master ; build_aws'
 alias build_aws='pushd $ASOBANN_ROOT/asobann_deploy ; pipenv run python tools/build_image.py ; popd'
@@ -42,3 +30,43 @@ restart_tasks_prod() {
   service=`aws ecs list-services --cluster $cluster | grep AppService | sed 's/[ ",]//g'`
   aws ecs list-tasks --cluster $cluster --service-name $service | grep arn: | sed 's/[",]//g' | xargs -n 1 -I {} aws ecs stop-task --cluster $cluster --task {} > /dev/null
 }
+
+#
+# local dev aliases / functions OBSOLETED
+#
+
+# shortcut aliases
+alias t='pipenv run pytest'
+alias tk='pipenv run pytest -k'
+alias tlf='pipenv run pytest --lf'
+
+# load initial data for local development server
+alias deploydev='cd src/asobann ; pipenv run python generate_table_json.py ; cd ../.. ; FLASK_ENV=develop pipenv run python -m asobann.deploy'
+
+
+#
+# local dev aliases / functions with containers
+#
+
+# exec command in app_1 container
+run_in_app_container() {
+	docker exec -it `docker ps | grep app_1 | awk '{print $1}'` "$@"
+}
+
+# exec command in test container
+run_in_test_container() {
+	docker exec -it `docker ps | grep test_1 | awk '{print $1}'` "$@"
+}
+
+# shortcut aliases
+alias tt='run_in_test_container pytest'
+alias ttk='tt -k'
+alias ttlf='tt --lf'
+
+# build local development container
+alias builddev='docker-compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml build'
+
+# run local development server in containr on port 8000-8002
+#alias rundev='FLASK_ENV=develop pipenv run python -m asobann.wsgi'
+alias rundev='docker-compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml up --build'
+
