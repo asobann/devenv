@@ -64,9 +64,9 @@ alias ttk='tt -k'
 alias ttlf='tt --lf'
 
 # build local development container
-alias builddev='docker-compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml build'
+alias builddev='docker compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml build'
 
 # run local development server in containr on port 8000-8002
 #alias rundev='FLASK_ENV=develop pipenv run python -m asobann.wsgi'
-alias rundev='docker-compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml up --build'
+alias rundev='docker compose -f $ASOBANN_ROOT/asobann_app/deploy/localdev/docker-compose.yml up --build'
 
